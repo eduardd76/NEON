@@ -6,6 +6,7 @@ interface LabState {
   lab: Lab | null;
   nodes: Node<NetworkNodeData>[];
   edges: Edge[];
+  selectedNode: Node<NetworkNodeData> | null;
   setLab: (lab: Lab) => void;
   setNodes: (nodes: Node<NetworkNodeData>[]) => void;
   setEdges: (edges: Edge[]) => void;
@@ -13,6 +14,7 @@ interface LabState {
   addEdge: (edge: Edge) => void;
   updateNode: (nodeId: string, data: Partial<NetworkNodeData>) => void;
   removeNode: (nodeId: string) => void;
+  setSelectedNode: (node: Node<NetworkNodeData> | null) => void;
   clearLab: () => void;
 }
 
@@ -20,6 +22,7 @@ export const useLabStore = create<LabState>((set) => ({
   lab: null,
   nodes: [],
   edges: [],
+  selectedNode: null,
 
   setLab: (lab) => set({ lab }),
 
@@ -46,7 +49,10 @@ export const useLabStore = create<LabState>((set) => ({
     edges: state.edges.filter(
       (edge) => edge.source !== nodeId && edge.target !== nodeId
     ),
+    selectedNode: state.selectedNode?.id === nodeId ? null : state.selectedNode,
   })),
 
-  clearLab: () => set({ lab: null, nodes: [], edges: [] }),
+  setSelectedNode: (node) => set({ selectedNode: node }),
+
+  clearLab: () => set({ lab: null, nodes: [], edges: [], selectedNode: null }),
 }));

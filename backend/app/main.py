@@ -5,7 +5,7 @@ FastAPI Application Entry Point
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.v1 import images, labs, chat
+from app.api.v1 import images, labs, chat, console
 
 # Create FastAPI app
 app = FastAPI(
@@ -66,6 +66,12 @@ app.include_router(
     chat.router,
     prefix=f"{settings.API_V1_PREFIX}/chat",
     tags=["chat"]
+)
+
+app.include_router(
+    console.router,
+    prefix=f"{settings.API_V1_PREFIX}/console",
+    tags=["console"]
 )
 
 

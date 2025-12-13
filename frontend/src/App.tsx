@@ -2,6 +2,7 @@ import { ReactFlowProvider } from 'reactflow';
 import { TopologyCanvas } from './components/canvas/TopologyCanvas';
 import { NodeLibrary } from './components/sidebar/NodeLibrary';
 import { ChatPanel } from './components/chat/ChatPanel';
+import { NodePanel } from './components/panel/NodePanel';
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
             <TopologyCanvas />
           </div>
         </ReactFlowProvider>
+        <NodePanel />
         <ChatPanel />
       </div>
     </div>

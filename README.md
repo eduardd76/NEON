@@ -14,10 +14,14 @@
 - 💾 **PostgreSQL Database** - Complete schema with 10 tables
 - 🧪 **Automated Testing** - Integration tests for all components
 
-### 🚧 In Progress (v2.0)
-- 🔧 **AI-Powered Configuration** - Enhanced topology generation from chat
-- 🖥️ **Console Access** - xterm.js + WebSocket for device management
-- ⚡ **Link Creation** - veth pairs and network bridges
+### ✅ Implemented (v2.0)
+- 🖥️ **Console Access** - xterm.js + WebSocket for real-time device management
+- ⚡ **Link Creation** - veth pairs and network bridges for point-to-point connections
+- 📱 **Node Properties Panel** - Interactive panel for device configuration and control
+- 🎯 **Network Impairment** - Bandwidth, latency, and packet loss simulation via tc
+
+### 🚧 In Progress (v2.5)
+- 🔧 **AI-Powered Configuration** - Enhanced topology generation with tool calling
 - ✅ **Testing Engine** - Batfish integration for validation
 
 ### 📋 Planned (v3.0)
@@ -179,6 +183,7 @@ bash test-integration.sh
 - **React 18** - UI framework
 - **TypeScript** - Type safety
 - **React Flow** - Visual topology editor
+- **xterm.js** - Terminal emulator for console access
 - **Zustand** - State management
 - **TailwindCSS** - Styling
 - **Axios** - HTTP client

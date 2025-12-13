@@ -8,6 +8,7 @@ import logging
 
 from app.db.models import Node, Link, Image
 from app.runtime.docker import DockerRuntime
+from app.runtime.network import NetworkManager
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ class RuntimeManager:
     def __init__(self):
         """Initialize runtime manager"""
         self.docker = DockerRuntime()
+        self.network = NetworkManager()
 
     async def deploy_node(self, node: Node, image: Image, db: Session) -> Dict:
         """
@@ -170,10 +172,7 @@ class RuntimeManager:
 
     async def create_link(self, link: Link, db: Session) -> Dict:
         """
-        Create a network link between two nodes
-
-        Note: This is simplified. Full implementation would use Linux bridges,
-        veth pairs, or Docker networks to connect containers.
+        Create a network link between two nodes using veth pairs
         """
         try:
             logger.info(
@@ -181,18 +180,93 @@ class RuntimeManager:
                 f"<-> {link.target_node.name}:{link.target_interface}"
             )
 
-            # For now, just mark link as up
-            # Full implementation would use docker exec to configure veth pairs
-            link.status = "up"
-            db.commit()
+            # Get container IDs from nodes
+            source_node = link.source_node
+            target_node = link.target_node
 
-            return {
-                "status": "created",
-                "message": "Link created successfully"
-            }
+            if not source_node.container_id or not target_node.container_id:
+                return {
+                    "status": "error",
+                    "message": "Both nodes must be deployed before creating links"
+                }
+
+            # Create veth pair link
+            success = self.network.create_veth_link(
+                container_a_id=source_node.container_id,
+                container_a_iface=link.source_interface,
+                container_b_id=target_node.container_id,
+                container_b_iface=link.target_interface,
+                bandwidth=link.bandwidth,
+                delay_ms=link.delay_ms,
+                loss_percent=float(link.loss_percent) if link.loss_percent else None
+            )
+
+            if success:
+                link.status = "up"
+                db.commit()
+
+                return {
+                    "status": "created",
+                    "message": "Link created successfully with veth pair"
+                }
+            else:
+                link.status = "error"
+                db.commit()
+
+                return {
+                    "status": "error",
+                    "message": "Failed to create veth link"
+                }
 
         except Exception as e:
             logger.error(f"Failed to create link: {e}")
+            link.status = "error"
+            db.commit()
+            raise
+
+    async def destroy_link(self, link: Link, db: Session) -> Dict:
+        """
+        Destroy a network link between nodes
+        """
+        try:
+            logger.info(
+                f"Destroying link: {link.source_node.name}:{link.source_interface} "
+                f"<-> {link.target_node.name}:{link.target_interface}"
+            )
+
+            source_node = link.source_node
+            target_node = link.target_node
+
+            if not source_node.container_id or not target_node.container_id:
+                return {
+                    "status": "not_deployed",
+                    "message": "Nodes are not deployed"
+                }
+
+            # Delete veth link
+            success = self.network.delete_link(
+                container_a_id=source_node.container_id,
+                container_a_iface=link.source_interface,
+                container_b_id=target_node.container_id,
+                container_b_iface=link.target_interface
+            )
+
+            if success:
+                link.status = "down"
+                db.commit()
+
+                return {
+                    "status": "destroyed",
+                    "message": "Link destroyed successfully"
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": "Failed to destroy link"
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to destroy link: {e}")
             raise
 
     def get_runtime_stats(self) -> Dict:

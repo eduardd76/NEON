@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.12",
+    "@xterm/xterm": "^5.5.0",
+    "@xterm/addon-fit": "^0.10.0",
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
     "lucide-react": "^0.561.0",

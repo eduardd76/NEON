@@ -18,7 +18,7 @@ const nodeTypes = {
 };
 
 export function TopologyCanvas() {
-  const { nodes, edges, addNode, addEdge: addStoreEdge } = useLabStore();
+  const { nodes, edges, addNode, addEdge: addStoreEdge, setSelectedNode } = useLabStore();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [localNodes, setLocalNodes, onNodesChange] = useNodesState(nodes);
   const [localEdges, setLocalEdges, onEdgesChange] = useEdgesState(edges);
@@ -75,6 +75,13 @@ export function TopologyCanvas() {
     [reactFlowInstance, localNodes, setLocalNodes, addNode]
   );
 
+  const onNodeClick = useCallback(
+    (_event: React.MouseEvent, node: typeof localNodes[0]) => {
+      setSelectedNode(node);
+    },
+    [setSelectedNode]
+  );
+
   return (
     <div ref={reactFlowWrapper} className="h-full w-full">
       <ReactFlow
@@ -85,6 +92,7 @@ export function TopologyCanvas() {
         onConnect={onConnect}
         onDrop={onDrop}
         onDragOver={onDragOver}
+        onNodeClick={onNodeClick}
         onInit={(instance) => {
           reactFlowInstance.current = instance;
         }}

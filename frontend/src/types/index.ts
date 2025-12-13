@@ -47,6 +47,11 @@ export interface NetworkNodeData {
   imageId: string;
   status: NodeStatus;
   mgmtIp?: string;
+  hostname?: string;
+  cpu?: number;
+  memory?: number;
+  icon?: string;
+  interfaces?: string[];
 }
 
 // Lab Node
