@@ -9,7 +9,9 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from app.db.base import get_db
-from app.db.models import Lab, Node, Link
+from app.db.models import Lab, Node, Link, Image
+from app.runtime.manager import get_runtime, RuntimeManager
+from datetime import datetime
 
 router = APIRouter()
 
@@ -243,3 +245,102 @@ async def add_link_to_lab(
         "id": str(db_link.id),
         "status": db_link.status
     }
+
+
+@router.post("/{lab_id}/deploy")
+async def deploy_lab(
+    lab_id: UUID,
+    db: Session = Depends(get_db),
+    runtime: RuntimeManager = Depends(get_runtime)
+):
+    """
+    Deploy all nodes in a lab
+    """
+    lab = db.query(Lab).filter(Lab.id == lab_id).first()
+
+    if not lab:
+        raise HTTPException(status_code=404, detail="Lab not found")
+
+    if lab.status == "running":
+        return {"message": "Lab is already running", "status": "running"}
+
+    try:
+        # Update lab status
+        lab.status = "deploying"
+        db.commit()
+
+        # Deploy each node
+        deployed_nodes = []
+        for node in lab.nodes:
+            image = db.query(Image).filter(Image.id == node.image_id).first()
+            if not image:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Image not found for node {node.name}"
+                )
+
+            result = await runtime.deploy_node(node, image, db)
+            deployed_nodes.append({
+                "node": node.name,
+                "container_id": result["container_id"],
+                "status": result["status"]
+            })
+
+        # Create links
+        deployed_links = []
+        for link in lab.links:
+            result = await runtime.create_link(link, db)
+            deployed_links.append({
+                "link_id": str(link.id),
+                "status": result["status"]
+            })
+
+        # Update lab status
+        lab.status = "running"
+        lab.deployed_at = datetime.utcnow()
+        db.commit()
+
+        return {
+            "message": "Lab deployed successfully",
+            "status": "running",
+            "nodes": deployed_nodes,
+            "links": deployed_links
+        }
+
+    except Exception as e:
+        lab.status = "error"
+        db.commit()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{lab_id}/destroy")
+async def destroy_lab(
+    lab_id: UUID,
+    db: Session = Depends(get_db),
+    runtime: RuntimeManager = Depends(get_runtime)
+):
+    """
+    Destroy all running nodes in a lab
+    """
+    lab = db.query(Lab).filter(Lab.id == lab_id).first()
+
+    if not lab:
+        raise HTTPException(status_code=404, detail="Lab not found")
+
+    try:
+        # Destroy each node
+        for node in lab.nodes:
+            if node.container_id:
+                await runtime.destroy_node(node, db)
+
+        # Update lab status
+        lab.status = "stopped"
+        db.commit()
+
+        return {
+            "message": "Lab destroyed successfully",
+            "status": "stopped"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
