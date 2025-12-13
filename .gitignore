@@ -82,3 +82,22 @@ alembic.ini.bak
 # Documentation (keep design docs but ignore generated)
 *.docx
 *.rtf
+
+# Demo screenshots and temporary files
+demo_screenshots/
+visual_demo/
+visual_build_demo/
+inject_demo/
+topology_load_demo/
+final_demo/
+demo_*.py
+create_topology.sh
+nul
+frontend.log
+E2E_TEST_REPORT_OSPF.md
+DEMO_RESULTS.md
+
+# Network OS images (large binary files)
+images/qcow2/*.qcow2
+images/qcow2/*.vmdk
+images/qcow2/*.vdi

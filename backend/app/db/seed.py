@@ -149,6 +149,42 @@ def seed_images(db: Session):
             "default_credentials": {"username": "admin", "password": "admin"},
             "interfaces_definition": {"pattern": "GigabitEthernet0/{n}", "start": 0, "max": 16}
         },
+        # Cisco IOSv 15.9.3 (CML - Direct QEMU)
+        {
+            "vendor_id": vendors["cisco"].id,
+            "name": "iosv-cml",
+            "display_name": "Cisco IOSv 15.9.3 (CML)",
+            "version": "15.9.3.M3",
+            "type": "router",
+            "runtime": "qemu",
+            "image_uri": "/app/images/qcow2/iosv-15.9.3.qcow2",
+            "cpu_min": 1,
+            "cpu_recommended": 1,
+            "memory_min": 384,
+            "memory_recommended": 512,
+            "startup_time": 120,
+            "console_type": "telnet",
+            "default_credentials": {"username": "cisco", "password": "cisco"},
+            "interfaces_definition": {"pattern": "GigabitEthernet0/{n}", "start": 0, "max": 7}
+        },
+        # Cisco IOSvL2 2020 (CML - Direct QEMU)
+        {
+            "vendor_id": vendors["cisco"].id,
+            "name": "iosvl2-cml",
+            "display_name": "Cisco IOSvL2 2020 (CML)",
+            "version": "2020",
+            "type": "switch",
+            "runtime": "qemu",
+            "image_uri": "/app/images/qcow2/iosvl2-2020.qcow2",
+            "cpu_min": 1,
+            "cpu_recommended": 1,
+            "memory_min": 512,
+            "memory_recommended": 768,
+            "startup_time": 90,
+            "console_type": "telnet",
+            "default_credentials": {"username": "cisco", "password": "cisco"},
+            "interfaces_definition": {"pattern": "GigabitEthernet0/{n}", "start": 0, "max": 15}
+        },
         # Alpine Linux (host)
         {
             "vendor_id": vendors["linux"].id,
@@ -207,6 +243,15 @@ def seed_images(db: Session):
             if image.startup_time < 30:
                 tag = ImageTag(image_id=image.id, tag="fast-boot")
                 db.add(tag)
+
+            # CML image tags
+            if image.name in ["iosv-cml", "iosvl2-cml"]:
+                cml_tag = ImageTag(image_id=image.id, tag="cml")
+                db.add(cml_tag)
+                ospf_tag = ImageTag(image_id=image.id, tag="ospf")
+                db.add(ospf_tag)
+                production_tag = ImageTag(image_id=image.id, tag="production-ready")
+                db.add(production_tag)
 
     db.commit()
     print("✓ Images seeded successfully")

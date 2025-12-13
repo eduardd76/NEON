@@ -65,6 +65,22 @@ npm run build      # Production build
 npm run lint       # ESLint
 ```
 
+### Testing
+```bash
+# Run E2E integration tests (Playwright)
+.\test-integration.ps1   # Windows
+bash test-integration.sh # Linux/Mac
+
+# Run AI topology build demo
+cd tests
+python demo_complete_workflow.py     # Full workflow demo
+python demo_topology_build.py        # Topology generation only
+
+# Install test dependencies
+pip install playwright pytest
+playwright install chromium
+```
+
 ### Docker Operations
 ```bash
 # Start specific services
@@ -110,14 +126,25 @@ The PostgreSQL database contains 10 main tables:
 ### Backend Structure
 ```
 backend/app/
-├── api/v1/          # REST endpoints (images.py, labs.py)
-├── core/            # Configuration, security, AI integration
+├── api/v1/          # REST endpoints
+│   ├── images.py    # Network image management
+│   ├── labs.py      # Lab CRUD + deploy/destroy
+│   ├── chat.py      # AI chat with tool calling
+│   └── console.py   # WebSocket console access
+├── core/
+│   ├── config.py    # Settings from env vars
+│   └── security.py  # Auth helpers (future)
 ├── db/
-│   ├── models/      # SQLAlchemy ORM models (8 files)
+│   ├── models/      # SQLAlchemy ORM (10 tables)
 │   ├── base.py      # Database session management
 │   └── seed.py      # Initial data seeding
-├── runtime/         # Docker/QEMU/vrnetlab drivers (future)
-├── schemas/         # Pydantic request/response models (future)
+├── runtime/
+│   ├── docker.py    # Docker SDK wrapper
+│   ├── network.py   # Network/link management
+│   └── manager.py   # Orchestration layer
+├── services/
+│   ├── ai_tools.py         # Claude tool definitions
+│   └── topology_builder.py # Topology pattern generation
 └── main.py          # FastAPI app entry point
 ```
 
@@ -126,6 +153,11 @@ backend/app/
 - Sessions managed via `SessionLocal()` context
 - Models use UUID primary keys with `gen_random_uuid()`
 - All timestamps use `timezone=True` with server defaults
+
+**Runtime Architecture:**
+- **DockerRuntime** (`runtime/docker.py`): Low-level container operations (create, start, stop, exec)
+- **NetworkManager** (`runtime/network.py`): veth pair creation, bridge management, traffic control
+- **RuntimeManager** (`runtime/manager.py`): High-level orchestration (deploy_node, create_link, check_ready)
 
 ### Frontend Structure
 ```
@@ -147,6 +179,20 @@ frontend/src/
 
 ## Critical Patterns
 
+### AI Tool Calling Architecture
+The chat endpoint (`/api/v1/chat/`) uses Claude's structured tool calling for topology manipulation:
+- **Tools Defined**: `app/services/ai_tools.py` contains 5 tools (add_nodes, add_links, create_topology_pattern, deploy_lab, get_lab_status)
+- **Tool Execution**: `execute_tool_call()` in `chat.py` routes to TopologyBuilder methods
+- **Response Format**: Returns ChatAction objects with type, description, data, and status
+- **Model**: Currently uses `claude-3-sonnet-20240229` (may need update for newer API versions)
+
+### Topology Builder Patterns
+Located in `app/services/topology_builder.py`, supports 4 topology patterns:
+- **ring**: Circular connectivity (each node connects to next)
+- **mesh**: Full mesh (every node connects to every other)
+- **star**: Central hub with spokes
+- **spine-leaf**: Datacenter architecture with spine_count and leaf_count parameters
+
 ### Image Runtime Types
 - **docker**: Native containers (cEOS, SR Linux, FRR, Alpine/Ubuntu) - fast startup
 - **vrnetlab**: VM-based images wrapped in Docker (IOSv, CSR1000v, vMX) - slow startup
@@ -157,6 +203,12 @@ frontend/src/
 stopped → starting → running → (error possible at any stage)
 ```
 Managed via `nodes.status` column and container lifecycle.
+
+### Link Status Flow
+```
+down → creating → up → (error possible during creation)
+```
+Links use veth pairs created by NetworkManager in `runtime/network.py`.
 
 ### API Design Conventions
 - All endpoints under `/api/v1/` prefix
@@ -192,6 +244,23 @@ Managed via `nodes.status` column and container lifecycle.
 4. Apply with `alembic upgrade head`
 5. Never modify existing migrations once applied in production
 
+### Working with AI Chat API
+Natural language commands are processed through Claude's tool calling:
+```python
+# Example user commands:
+"Add 3 Arista routers"
+"Create a ring topology with 5 routers"
+"Build a spine-leaf datacenter with 2 spines and 4 leaves"
+"Connect R1 to R2"
+"Deploy the lab"
+```
+
+The AI selects appropriate tools and the backend executes them via TopologyBuilder.
+Key implementation files:
+- `backend/app/api/v1/chat.py` - Chat endpoint with tool calling
+- `backend/app/services/ai_tools.py` - Tool definitions
+- `backend/app/services/topology_builder.py` - Topology generation logic
+
 ## Known Configuration
 
 - Backend runs on port 8000
@@ -202,39 +271,54 @@ Managed via `nodes.status` column and container lifecycle.
 
 ## Current Development Status
 
-**Version 1.0 - Completed:**
+**Version 2.5 - Completed:**
 - ✅ Database schema (10 tables with relationships)
 - ✅ Alembic migrations infrastructure
-- ✅ Vendor and image seed data (7 vendors, 8 images)
+- ✅ Vendor and image seed data (7 vendors, 8+ images)
 - ✅ FastAPI app with CORS and health endpoints
 - ✅ Images API (list, get, filter by type/vendor/runtime)
 - ✅ Labs API (CRUD operations + deploy/destroy)
-- ✅ Chat API (Claude 3.5 Sonnet integration)
+- ✅ **AI Tool Calling** (Claude with structured tools)
+- ✅ **Topology Builder** (ring, mesh, star, spine-leaf patterns)
+- ✅ **Console Access** (xterm.js + WebSocket)
+- ✅ **Link Creation** (veth pairs + network bridges)
 - ✅ Docker Compose setup for all services
 - ✅ Docker runtime layer (container lifecycle management)
 - ✅ Runtime manager (node deployment orchestration)
 - ✅ Frontend React app with complete UI
   - ✅ React Flow topology canvas
   - ✅ Drag-and-drop device library
-  - ✅ AI chat panel
+  - ✅ AI chat panel with action visualization
+  - ✅ Node properties panel
   - ✅ shadcn/ui components
 - ✅ Pydantic schemas for request/response validation
 - ✅ Production Dockerfile for frontend (nginx)
-- ✅ Automated integration tests
+- ✅ **Playwright E2E Tests** (8 tests with 100% pass rate)
 - ✅ Comprehensive documentation
 
-**In Progress/Planned (v2.0):**
-- ⏳ Enhanced AI topology generation from chat
-- ⏳ Console access (xterm.js + WebSocket)
-- ⏳ Link creation with veth pairs
+**In Progress/Planned (v3.0):**
 - ⏳ Configuration engine (Scrapli/NAPALM)
 - ⏳ Testing engine (Batfish integration)
 - ⏳ User authentication and authorization
+- ⏳ Template system for pre-built topologies
 
 ## Important Notes
 
+### Security & Configuration
 - The `.env` file contains sensitive credentials - never commit it
-- Network image URIs point to public registries except vrnetlab (requires local build)
+- Generate SECRET_KEY using: `openssl rand -hex 32`
+- ANTHROPIC_API_KEY is required for AI chat features
 - Container runtime requires Docker socket access - security consideration for production
-- Alembic auto-generate may miss certain changes - always review migrations
-- React Flow requires specific handle positioning for proper connection behavior
+
+### Known Issues & Considerations
+- **Claude Model Version**: `chat.py:108` uses `claude-3-sonnet-20240229` - may need updating for newer Anthropic API versions
+- **Network Images**: URIs point to public registries except vrnetlab (requires local build)
+- **Alembic Migrations**: Auto-generate may miss certain changes - always review before applying
+- **React Flow**: Requires specific handle positioning for proper connection behavior
+- **Console Access**: Requires container exec permissions and proper TTY allocation
+- **Link Creation**: Uses Linux veth pairs - requires host networking capabilities
+
+### Test Coverage
+- 8 Playwright E2E tests covering: health checks, vendors, images, labs, nodes, links, topology build, console access
+- Test scripts: `test-integration.ps1` (Windows) and `test-integration.sh` (Linux/Mac)
+- Demo scripts: `tests/demo_complete_workflow.py` and `tests/demo_topology_build.py`

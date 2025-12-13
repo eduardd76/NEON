@@ -29,11 +29,13 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-neon}:${POSTGRES_PASSWORD:-neon}@db:5432/${POSTGRES_DB:-neon}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       SECRET_KEY: ${SECRET_KEY}
+      DOCKER_HOST: unix:///var/run/docker.sock
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
       - /var/run/docker.sock:/var/run/docker.sock  # For container management
+      - ./images:/app/images:ro  # CML qcow2 images (read-only)
     depends_on:
       db:
         condition: service_healthy

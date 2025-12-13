@@ -56,3 +56,8 @@ export const useLabStore = create<LabState>((set) => ({
 
   clearLab: () => set({ lab: null, nodes: [], edges: [], selectedNode: null }),
 }));
+
+// Expose store globally in development for debugging and demos
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
+  (window as any).__NEON_LAB_STORE__ = useLabStore;
+}

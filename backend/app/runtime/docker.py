@@ -17,7 +17,8 @@ class DockerRuntime:
     def __init__(self):
         """Initialize Docker client"""
         try:
-            self.client = docker.from_env()
+            # Use unix socket directly to avoid URL scheme issues
+            self.client = docker.DockerClient(base_url='unix://var/run/docker.sock')
             self.client.ping()
             logger.info("Docker client initialized successfully")
         except DockerException as e:
