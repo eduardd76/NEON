@@ -8,7 +8,7 @@ import asyncio
 import docker
 from docker.errors import DockerException, NotFound
 
-from app.db.session import get_db
+from app.db.base import get_db
 from app.db.models import Node
 
 router = APIRouter()
