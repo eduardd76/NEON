@@ -1,11 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User } from 'lucide-react';
+import { Send, Bot, User, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import axios from 'axios';
+
+interface ChatAction {
+  type: string;
+  description: string;
+  data: any;
+  status: 'pending' | 'success' | 'error';
+}
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  actions?: ChatAction[];
 }
 
 export function ChatPanel() {
@@ -13,7 +22,7 @@ export function ChatPanel() {
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! I can help you design and configure your network topology. Try asking me to add devices, configure connections, or explain network concepts.',
+      content: 'Hello! I can help you build network topologies. Try: "Add 3 routers", "Create a ring topology with 5 devices", or "Build a spine-leaf datacenter with 2 spines and 4 leaves".',
       timestamp: new Date(),
     },
   ]);
@@ -40,24 +49,37 @@ export function ChatPanel() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setIsLoading(true);
 
     try {
-      // TODO: Implement actual AI chat API call
-      // For now, simulate a response
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Call the chat API with tool calling
+      const response = await axios.post('/api/v1/chat/', {
+        message: currentInput,
+        lab_id: null, // TODO: Get from current lab context
+      });
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `I received your message: "${input}". AI integration will be implemented soon!`,
+        content: response.data.response,
         timestamp: new Date(),
+        actions: response.data.actions || [],
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Chat error:', error);
+
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Sorry, I encountered an error processing your request. Please make sure the backend is running and try again.',
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -70,88 +92,140 @@ export function ChatPanel() {
     }
   };
 
+  const getActionIcon = (status: string) => {
+    switch (status) {
+      case 'success':
+        return <CheckCircle2 className="w-4 h-4 text-green-600" />;
+      case 'error':
+        return <XCircle className="w-4 h-4 text-red-600" />;
+      default:
+        return <AlertCircle className="w-4 h-4 text-yellow-600" />;
+    }
+  };
+
   return (
     <div className="w-96 bg-white border-l flex flex-col h-full">
-      <div className="p-4 border-b bg-gray-50">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
+      <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-blue-100">
+        <h2 className="text-lg font-semibold flex items-center gap-2 text-blue-900">
           <Bot className="w-5 h-5" />
           AI Assistant
         </h2>
+        <p className="text-xs text-blue-700 mt-1">
+          Build topologies with natural language
+        </p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex gap-3 ${
-              message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-            }`}
+            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+              className={`max-w-[85%] ${
                 message.role === 'user'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 text-gray-600'
-              }`}
-            >
-              {message.role === 'user' ? (
-                <User className="w-5 h-5" />
-              ) : (
-                <Bot className="w-5 h-5" />
-              )}
-            </div>
-            <div
-              className={`flex-1 rounded-lg p-3 ${
-                message.role === 'user'
-                  ? 'bg-blue-500 text-white'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-900'
-              }`}
+              } rounded-lg p-3 shadow-sm`}
             >
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-              <span
-                className={`text-xs mt-1 block ${
-                  message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
-                }`}
-              >
-                {message.timestamp.toLocaleTimeString()}
-              </span>
+              <div className="flex items-start gap-2 mb-1">
+                {message.role === 'assistant' ? (
+                  <Bot className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                ) : (
+                  <User className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                )}
+                <div className="flex-1">
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+
+                  {/* Display actions if present */}
+                  {message.actions && message.actions.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {message.actions.map((action, idx) => (
+                        <div
+                          key={idx}
+                          className={`text-xs p-2 rounded border ${
+                            action.status === 'success'
+                              ? 'bg-green-50 border-green-200'
+                              : action.status === 'error'
+                              ? 'bg-red-50 border-red-200'
+                              : 'bg-yellow-50 border-yellow-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {getActionIcon(action.status)}
+                            <span className="font-medium">{action.type}</span>
+                          </div>
+                          <p className="mt-1 text-gray-700">{action.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className={`text-xs ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'} mt-1`}>
+                {message.timestamp.toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </div>
             </div>
           </div>
         ))}
+
         {isLoading && (
-          <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-gray-600" />
-            </div>
-            <div className="bg-gray-100 rounded-lg p-3">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
+          <div className="flex justify-start">
+            <div className="bg-gray-100 rounded-lg p-3 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4" />
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
               </div>
             </div>
           </div>
         )}
+
         <div ref={messagesEndRef} />
       </div>
 
       <div className="p-4 border-t bg-gray-50">
         <div className="flex gap-2">
-          <textarea
+          <input
+            type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask me anything about your network..."
-            className="flex-1 px-3 py-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows={2}
+            placeholder="Add devices, create topologies..."
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={isLoading}
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            disabled={isLoading || !input.trim()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
-            <Send className="w-5 h-5" />
+            <Send className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* Quick suggestions */}
+        <div className="mt-2 flex flex-wrap gap-1">
+          {[
+            'Add 3 routers',
+            'Ring topology',
+            'Spine-leaf 2x4',
+          ].map((suggestion) => (
+            <button
+              key={suggestion}
+              onClick={() => setInput(suggestion)}
+              className="text-xs px-2 py-1 bg-white border border-gray-200 rounded hover:bg-gray-50 transition-colors"
+              disabled={isLoading}
+            >
+              {suggestion}
+            </button>
+          ))}
         </div>
       </div>
     </div>

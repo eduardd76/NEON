@@ -20,9 +20,15 @@
 - 📱 **Node Properties Panel** - Interactive panel for device configuration and control
 - 🎯 **Network Impairment** - Bandwidth, latency, and packet loss simulation via tc
 
-### 🚧 In Progress (v2.5)
-- 🔧 **AI-Powered Configuration** - Enhanced topology generation with tool calling
+### ✅ Implemented (v2.5)
+- 🤖 **AI Tool Calling** - Claude's structured tool calling for topology generation
+- 🏗️ **Topology Builder** - Build complete topologies from natural language
+- 📐 **Topology Patterns** - Pre-built patterns (ring, mesh, star, spine-leaf)
+- 🎨 **Enhanced Chat UI** - Action visualization with success/error indicators
+
+### 🚧 In Progress (v3.0)
 - ✅ **Testing Engine** - Batfish integration for validation
+- 📋 **Configuration Templates** - Vendor-specific config generation
 
 ### 📋 Planned (v3.0)
 - 👥 **User Authentication** - Multi-user support with roles
@@ -196,19 +202,40 @@ bash test-integration.sh
 
 ## Current Status
 
-**Version:** 1.0.0
-**Status:** ✅ Production Ready (Core Features)
+**Version:** 2.5.0
+**Status:** ✅ Production Ready + AI-Powered
 
-### Test Results
+### Build Results
 ```
-✓ 14/14 Integration tests passing
-✓ Backend API fully functional
-✓ Frontend builds successfully (416.93 KB)
-✓ Docker runtime operational
-✓ AI chat endpoint working
-✓ Database migrations applied
-✓ All services healthy
+✓ Backend: FastAPI + SQLAlchemy + Claude AI
+✓ Frontend: 721.08 KB (212.82 KB gzipped)
+✓ Console Access: xterm.js + WebSocket
+✓ AI Tool Calling: Structured topology generation
+✓ Topology Builder: 4 patterns (ring, mesh, star, spine-leaf)
+✓ Network Links: veth pairs with traffic control
 ```
+
+### AI Capabilities
+
+Try these natural language commands:
+
+**Adding Devices:**
+- "Add 3 Arista routers"
+- "Add 5 Nokia switches"
+- "Create a Cisco router and 2 hosts"
+
+**Creating Topologies:**
+- "Create a ring topology with 5 routers"
+- "Build a mesh network with 4 devices"
+- "Make a spine-leaf datacenter with 2 spines and 4 leaves"
+
+**Connecting Devices:**
+- "Connect R1 to R2"
+- "Connect all routers in a ring"
+
+**Deployment:**
+- "Deploy the lab"
+- "Show me the lab status"
 
 ### What Works
 - ✅ Create and manage labs
