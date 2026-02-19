@@ -26,6 +26,16 @@
 - 📐 **Topology Patterns** - Pre-built patterns (ring, mesh, star, spine-leaf)
 - 🎨 **Enhanced Chat UI** - Action visualization with success/error indicators
 
+### ✅ Bug Fixes (v2.5.1)
+- 🐛 **Node deploy crash fixed** — `docker.py` no longer raises `TypeError` from duplicate `labels` keyword when deploying containers
+- 🐛 **`/vendors/` route fixed** — `GET /api/v1/images/vendors/` was unreachable (shadowed by `/{image_id}`); route order corrected
+- 🐛 **Claude model updated** — chat endpoint upgraded from deprecated `claude-3-5-sonnet-20240620` to `claude-sonnet-4-6`
+- 🐛 **Duplicate interfaces fixed** — topology builder now tracks assigned interfaces locally per batch, preventing every link in a group from getting `eth0`
+- 🐛 **Vendor filter query fixed** — removed redundant `.join(Image.vendor)` that accompanied the `has()` correlated subquery
+- 🐛 **Spine-leaf type safety** — `create_topology_pattern()` now validates `count` type with clear `ValueError` messages
+- 🐛 **tc qdisc conflict fixed** — when both bandwidth and delay are set, `network.py` chains `tbf → netem` instead of adding two conflicting root qdiscs
+- 🧪 **Unit test suite added** — `tests/test_bug_fixes.py` covers all 7 fixes (11 tests, no Docker/PostgreSQL required)
+
 ### 🚧 In Progress (v3.0)
 - ✅ **Testing Engine** - Batfish integration for validation
 - 📋 **Configuration Templates** - Vendor-specific config generation
@@ -149,12 +159,17 @@ npm run preview
 
 ### Run Automated Tests
 
-**Windows:**
+**Unit tests** (no Docker or PostgreSQL required):
+```bash
+python -m pytest tests/test_bug_fixes.py -v
+```
+
+**Integration tests (Windows):**
 ```powershell
 .\test-integration.ps1
 ```
 
-**Linux/Mac:**
+**Integration tests (Linux/Mac):**
 ```bash
 bash test-integration.sh
 ```
@@ -181,7 +196,7 @@ bash test-integration.sh
 - **SQLAlchemy 2.0** - ORM for database operations
 - **Alembic** - Database migrations
 - **PostgreSQL 15** - Primary database
-- **Anthropic Claude 3.5 Sonnet** - AI integration
+- **Anthropic Claude Sonnet 4.6** - AI integration
 - **Docker SDK** - Container management
 - **Pydantic** - Request/response validation
 
@@ -202,7 +217,7 @@ bash test-integration.sh
 
 ## Current Status
 
-**Version:** 2.5.0
+**Version:** 2.5.1
 **Status:** ✅ Production Ready + AI-Powered
 
 ### Build Results
@@ -284,7 +299,7 @@ MIT License - See LICENSE file for details
 ## Acknowledgments
 
 - Built with [Claude Code](https://claude.com/claude-code)
-- Powered by Anthropic Claude 3.5 Sonnet
+- Powered by Anthropic Claude Sonnet 4.6
 - Inspired by EVE-NG, Containerlab, and n8n
 
 ---
