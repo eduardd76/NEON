@@ -61,6 +61,10 @@ class DockerRuntime:
                 logger.info(f"Pulling image: {image}")
                 self.client.images.pull(image)
 
+            # Merge any caller-supplied labels with base labels (pop to avoid
+            # duplicate key TypeError when unpacking **container_config, **kwargs)
+            extra_labels = kwargs.pop("labels", {})
+
             # Prepare container configuration
             container_config = {
                 "image": image,
@@ -71,7 +75,8 @@ class DockerRuntime:
                 "environment": environment or {},
                 "labels": {
                     "neon.managed": "true",
-                    "neon.type": "network-device"
+                    "neon.type": "network-device",
+                    **extra_labels,
                 }
             }
 

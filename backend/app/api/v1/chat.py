@@ -105,7 +105,7 @@ Links: {len(lab.links)}"""
 
         # Call Claude API with tools
         response = client.messages.create(
-            model="claude-3-5-sonnet-20240620",
+            model="claude-sonnet-4-6",
             max_tokens=2048,
             system=system_prompt,
             tools=TOPOLOGY_TOOLS,
