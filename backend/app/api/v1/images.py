@@ -78,6 +78,29 @@ async def list_images(
     }
 
 
+@router.get("/vendors/")
+async def list_vendors(db: Session = Depends(get_db)):
+    """
+    List all vendors
+    """
+    vendors = db.query(Vendor).all()
+
+    return {
+        "count": len(vendors),
+        "vendors": [
+            {
+                "id": str(v.id),
+                "name": v.name,
+                "display_name": v.display_name,
+                "logo_url": v.logo_url,
+                "website": v.website,
+                "image_count": len(v.images)
+            }
+            for v in vendors
+        ]
+    }
+
+
 @router.get("/{image_id}")
 async def get_image(image_id: UUID, db: Session = Depends(get_db)):
     """
@@ -142,27 +165,4 @@ async def get_image(image_id: UUID, db: Session = Depends(get_db)):
         "is_verified": image.is_verified,
         "created_at": image.created_at.isoformat() if image.created_at else None,
         "updated_at": image.updated_at.isoformat() if image.updated_at else None
-    }
-
-
-@router.get("/vendors/")
-async def list_vendors(db: Session = Depends(get_db)):
-    """
-    List all vendors
-    """
-    vendors = db.query(Vendor).all()
-
-    return {
-        "count": len(vendors),
-        "vendors": [
-            {
-                "id": str(v.id),
-                "name": v.name,
-                "display_name": v.display_name,
-                "logo_url": v.logo_url,
-                "website": v.website,
-                "image_count": len(v.images)
-            }
-            for v in vendors
-        ]
     }

@@ -134,7 +134,12 @@ class NetworkManager:
         loss_percent: Optional[float] = None
     ) -> None:
         """
-        Apply traffic control (tc) to interface for network impairment
+        Apply traffic control (tc) to interface for network impairment.
+
+        Linux only permits one root qdisc per interface.  When both bandwidth
+        limiting and netem impairment are requested we chain them:
+          root → tbf (rate limiting) → netem (delay / loss) as a child qdisc.
+        When only one type is requested a single root qdisc suffices.
 
         Args:
             pid: Container PID
@@ -144,33 +149,44 @@ class NetworkManager:
             loss_percent: Packet loss percentage
         """
         try:
-            # Build tc command for netem
-            tc_params = []
-
+            netem_params = []
             if delay_ms:
-                tc_params.extend(["delay", f"{delay_ms}ms"])
-
+                netem_params.extend(["delay", f"{delay_ms}ms"])
             if loss_percent:
-                tc_params.extend(["loss", f"{loss_percent}%"])
+                netem_params.extend(["loss", f"{loss_percent}%"])
 
-            if tc_params:
-                # Add qdisc for netem
-                cmd = ["nsenter", "-t", str(pid), "-n", "tc", "qdisc", "add", "dev", interface, "root", "netem"] + tc_params
-                subprocess.run(cmd, check=True, capture_output=True)
-                logger.info(f"Applied tc netem to {interface}: {' '.join(tc_params)}")
+            ns = ["nsenter", "-t", str(pid), "-n"]
 
-            if bandwidth:
-                # Add tbf (token bucket filter) for bandwidth limiting
-                # This is a simplified version - production would need more sophisticated qdisc setup
-                cmd = [
-                    "nsenter", "-t", str(pid), "-n",
+            if bandwidth and netem_params:
+                # Chain: root tbf → child netem (handle 1: / parent 1:1)
+                tbf_cmd = ns + [
+                    "tc", "qdisc", "add", "dev", interface,
+                    "root", "handle", "1:", "tbf",
+                    "rate", bandwidth, "burst", "32kbit", "latency", "50ms"
+                ]
+                subprocess.run(tbf_cmd, check=True, capture_output=True)
+
+                netem_cmd = ns + [
+                    "tc", "qdisc", "add", "dev", interface,
+                    "parent", "1:1", "handle", "10:", "netem"
+                ] + netem_params
+                subprocess.run(netem_cmd, check=True, capture_output=True)
+                logger.info(f"Applied tc tbf+netem to {interface}: rate={bandwidth} {' '.join(netem_params)}")
+
+            elif bandwidth:
+                cmd = ns + [
                     "tc", "qdisc", "add", "dev", interface, "root", "tbf",
-                    "rate", bandwidth,
-                    "burst", "32kbit",
-                    "latency", "50ms"
+                    "rate", bandwidth, "burst", "32kbit", "latency", "50ms"
                 ]
                 subprocess.run(cmd, check=True, capture_output=True)
                 logger.info(f"Applied tc tbf to {interface}: rate {bandwidth}")
+
+            elif netem_params:
+                cmd = ns + [
+                    "tc", "qdisc", "add", "dev", interface, "root", "netem"
+                ] + netem_params
+                subprocess.run(cmd, check=True, capture_output=True)
+                logger.info(f"Applied tc netem to {interface}: {' '.join(netem_params)}")
 
         except subprocess.CalledProcessError as e:
             logger.warning(f"Failed to apply tc: {e.stderr.decode() if e.stderr else str(e)}")

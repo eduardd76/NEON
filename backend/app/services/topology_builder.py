@@ -2,7 +2,7 @@
 Topology Builder Service
 Builds network topologies from AI-generated actions
 """
-from typing import List, Dict, Tuple, Optional
+from typing import Dict, List, Optional, Tuple, Union
 from uuid import UUID
 from sqlalchemy.orm import Session
 import logging
@@ -57,9 +57,9 @@ class TopologyBuilder:
             if "type" in node_spec:
                 image_query = image_query.filter(Image.type == node_spec["type"])
 
-            # Match by vendor
+            # Match by vendor (use has() correlated subquery; no explicit join needed)
             if "vendor" in node_spec:
-                image_query = image_query.join(Image.vendor).filter(
+                image_query = image_query.filter(
                     Image.vendor.has(name=node_spec["vendor"])
                 )
 
@@ -139,6 +139,24 @@ class TopologyBuilder:
         # Build node name to ID map
         nodes_by_name = {node.name: node for node in lab.nodes}
 
+        # Seed used-interface tracking from links already persisted in the DB.
+        # We maintain this dict ourselves so that interfaces assigned within
+        # this batch are visible to subsequent iterations (lab.links is a
+        # SQLAlchemy lazy collection that is NOT refreshed after each flush).
+        used_interfaces: Dict[str, set] = {}
+        for existing_link in lab.links:
+            src_id = str(existing_link.source_node_id)
+            tgt_id = str(existing_link.target_node_id)
+            used_interfaces.setdefault(src_id, set()).add(existing_link.source_interface)
+            used_interfaces.setdefault(tgt_id, set()).add(existing_link.target_interface)
+
+        def _next_iface(node_id: str, prefix: str = "eth") -> str:
+            used = used_interfaces.get(str(node_id), set())
+            i = 0
+            while f"{prefix}{i}" in used:
+                i += 1
+            return f"{prefix}{i}"
+
         for link_spec in links:
             source_name = link_spec["source"]
             target_name = link_spec["target"]
@@ -155,10 +173,14 @@ class TopologyBuilder:
             source_iface = link_spec.get("source_interface")
             target_iface = link_spec.get("target_interface")
 
-            if not source_iface or not target_iface:
-                source_iface, target_iface = self._auto_assign_interfaces(
-                    source_node, target_node, lab.links
-                )
+            if not source_iface:
+                source_iface = _next_iface(source_node.id)
+            if not target_iface:
+                target_iface = _next_iface(target_node.id)
+
+            # Record assignment so next iteration sees these interfaces as used
+            used_interfaces.setdefault(str(source_node.id), set()).add(source_iface)
+            used_interfaces.setdefault(str(target_node.id), set()).add(target_iface)
 
             # Get properties
             props = link_spec.get("properties", {})
@@ -196,7 +218,7 @@ class TopologyBuilder:
         self,
         lab_id: UUID,
         pattern: str,
-        count: int,
+        count: Union[int, Dict],
         image_type: str,
         db: Session
     ) -> Dict:
@@ -220,12 +242,20 @@ class TopologyBuilder:
             Summary of created topology
         """
         if pattern == "ring":
+            if not isinstance(count, int):
+                raise ValueError("ring pattern requires an integer count")
             return self._create_ring(lab_id, count, image_type, db)
         elif pattern == "mesh":
+            if not isinstance(count, int):
+                raise ValueError("mesh pattern requires an integer count")
             return self._create_mesh(lab_id, count, image_type, db)
         elif pattern == "star":
+            if not isinstance(count, int):
+                raise ValueError("star pattern requires an integer count")
             return self._create_star(lab_id, count, image_type, db)
         elif pattern == "spine-leaf":
+            if not isinstance(count, dict):
+                raise ValueError("spine-leaf pattern requires a dict with 'spines' and 'leaves' keys")
             return self._create_spine_leaf(lab_id, count, image_type, db)
         else:
             raise ValueError(f"Unknown topology pattern: {pattern}")
