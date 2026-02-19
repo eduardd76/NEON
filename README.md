@@ -304,6 +304,59 @@ MIT License - See LICENSE file for details
 
 ---
 
+## Changelog
+
+### [v2.5.1](https://github.com/eduardd76/NEON/releases/tag/v2.5.1) — 2026-02-19
+
+#### Bug Fixes
+
+**Critical**
+- **`docker.py`** — `create_container()` raised `TypeError: got multiple values for keyword argument 'labels'` on every node deployment. Caller-supplied labels are now merged with base labels before the Docker SDK call.
+- **`images.py`** — `GET /api/v1/images/vendors/` was unreachable (returning 422) because the parameterised `/{image_id}` route was registered first. Route order corrected.
+- **`chat.py`** — AI chat endpoint was using deprecated model `claude-3-5-sonnet-20240620`. Updated to `claude-sonnet-4-6`.
+
+**Significant**
+- **`topology_builder.py`** — Batch link creation assigned duplicate interface names (e.g. all links on R1 got `eth0`) because `lab.links` is a stale SQLAlchemy collection not refreshed between flushes. Replaced with a local `used_interfaces` dict updated after each assignment.
+- **`network.py`** — Setting both `bandwidth` and `delay_ms` on a link caused a Linux `tc` error (two root qdiscs on one interface). Fixed by chaining `tbf` (root) → `netem` (child).
+
+**Moderate**
+- **`topology_builder.py`** — Vendor filter used redundant `.join(Image.vendor)` alongside `Image.vendor.has()`. Removed the spurious join.
+- **`topology_builder.py`** — `create_topology_pattern()` typed `count` as `int` but spine-leaf requires a `dict`. Fixed annotation to `Union[int, Dict]` with `isinstance` guards and clear error messages.
+
+#### Testing
+- Added `tests/test_bug_fixes.py` — 11 unit tests covering all 7 fixes, runnable without Docker or PostgreSQL (`python -m pytest tests/test_bug_fixes.py -v`).
+
+**Full changelog:** https://github.com/eduardd76/NEON/compare/e762c07...v2.5.1
+
+---
+
+### [v2.5.0](https://github.com/eduardd76/NEON/releases/tag/v2.5.0) — AI-Powered Topology Generation
+
+- AI Tool Calling with Claude structured tools
+- Topology Builder with ring, mesh, star, spine-leaf patterns
+- Enhanced Chat UI with action visualization
+- Playwright E2E test suite (8 tests)
+
+---
+
+### [v2.0.0](https://github.com/eduardd76/NEON/releases/tag/v2.0.0) — Console Access & Network Links
+
+- WebSocket console access via xterm.js
+- veth pair link creation with traffic control
+- Node properties panel
+
+---
+
+### [v1.0.0](https://github.com/eduardd76/NEON/releases/tag/v1.0.0) — Initial Release
+
+- FastAPI backend with PostgreSQL
+- React Flow visual topology editor
+- Docker runtime for container lifecycle
+- Multi-vendor image support (7 vendors)
+- REST API with Swagger documentation
+
+---
+
 **"Light up your network with NEON"** 💡
 
 🚀 **[View on GitHub](https://github.com/eduardd76/NEON)** | 📚 **[API Docs](http://localhost:8000/docs)** | 💬 **[Report Issues](https://github.com/eduardd76/NEON/issues)**
